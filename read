@@ -1,0 +1,5 @@
+
+
+.filter(num => num <= value);
+.sort((a, b) => b - a);
+.slice(0, 10)
