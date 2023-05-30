@@ -1,7 +1,7 @@
 
 
 const mongoose = require("mongoose");
-const Candle = require("./dbCandle");
+const Candle = require("./dbTestCandle");
 
 // URL для підключення до локальної бази даних MongoDB
 const databaseUrl = "mongodb://127.0.0.1:27017/binance";

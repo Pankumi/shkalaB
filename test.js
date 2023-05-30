@@ -1,4 +1,4 @@
-const createScaleArray = require("./scale"); // створ. шкали
+const { createScaleArray } = require("./fuctions"); // створ. шкали
 
 // початкові зн. шкали: мін. ціна, макс. ціна, крок %:
 const scaleStart = 1000;
@@ -43,11 +43,6 @@ function filterArrayByRange(arr, obj) {
 const filteredScale = filterArrayByRange(scale, candle);
 
 // ***********
-if (filteredScale.length === 0) {
-  console.log(filteredScale);
-}
-
-// ***********
 function findTopAndDown(arr, value) {
   // Повертає сходинки шкали { top, down } між якими знаходиться low свічки
   // Якщо value більше за всі значення у arr, top буде null, а down буде максимальним значенням у arr.
@@ -89,7 +84,7 @@ function findTopAndDown(arr, value) {
 
   return { top, down };
 }
-const topDownStep = findTopAndDown(scale, candle.low);
+// const topDownStep = findTopAndDown(scale, candle.low);
 
 // ***********
 function tenLevelsBuy(arr, value, levels = 10) {
@@ -111,10 +106,18 @@ function tenLevelsBuy(arr, value, levels = 10) {
     
     return result;
   }
+// const levelsBuy = tenLevelsBuy(scale, candle.low);
 
-const levelsBuy = tenLevelsBuy(scale, candle.low);
 
-console.log("topDownStep >>", result);
+// ***********
+const lowSell = null;
+const lowCandle = 10;
+const highCandle = 400;
+if ( lowSell >= lowCandle && lowSell <= highCandle ) {
+  console.log("додаю 1 >>", );
+}
+
+console.log("кінець >>", );
 
 
 

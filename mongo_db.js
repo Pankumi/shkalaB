@@ -33,8 +33,9 @@ const btcusdtSchema = new mongoose.Schema({
 // Створення моделі на основі схеми
 const BtcusdtModel = mongoose.model(bdCollection, btcusdtSchema);
 
-// //Пошук документу з вказаною датою або найближчою наступною
-
+// ************
+// //отримуе першу свічку з проміжку
+// //приймає час початку інтервалу в мілесекундах
 // async function getFirstCandle (startTime){
 //   await BtcusdtModel.findOne({ openTime: { $gte: startTime } })
 //     .sort({ openTime: 1 }) // Сортування за зростанням
@@ -51,12 +52,14 @@ const BtcusdtModel = mongoose.model(bdCollection, btcusdtSchema);
 //     });
 // };
 
-async function getFirstCandle(startTime) {
-  // отримуе першу свічку з проміжку
-  // приймає час початку інтервалу в мілесекундах
+
+// повертає першу свічку з проміжку
+// приймає час початку інтервалу в мілесекундах
+async function getFirstCandle(queryParams) {
+  const {dataStartMs} = queryParams;
   try {
     const document = await BtcusdtModel.findOne({
-      openTime: { $gte: startTime },
+      openTime: { $gte: dataStartMs },
     })
       .sort({ openTime: 1 }) // Сортування за зростанням
       .exec();
@@ -70,25 +73,26 @@ async function getFirstCandle(startTime) {
 // console.log("date", date);
 // getFirstCandle(date);
 
+
 // ************
+// повертає найближчу наступну свічку яка або пересікає сходинку шкали або пересікає ордер на продаж
+// приймає масив з: часом початку/кінця періоду, 2 найближчі сходинки шкали (buy): меньше/більше попередньої ціни, найменший ордер на продаж sell
 async function getCandle(queryParams) {
-  // повертає найближчу наступну свічку яка або пересікає сходинку шкали або пересікає ордер на продаж
-  // приймає масив з: часом початку/кінця періоду, 2 найближчі сходинки шкали (buy): меньше/більше попередньої ціни, найменший ордер на продаж sell
-  const { dataStartMs, dataEndMs, high, low, buy } = queryParams;
+  const { dataStartMs, dataEndMs, highParam, lowParam, buyParam } = queryParams;
   try {
     const document = await BtcusdtModel.findOne({
       openTime: { $gte: dataStartMs },
       closeTime: { $lte: dataEndMs },
       $or: [
-        { high: { $gte: high } },
-        { high: { $gte: buy } },
-        { low: { $lte: low } },
+        { high: { $gte: String(highParam) } },
+        { high: { $gte: String(buyParam) } },
+        { low: { $lte: String(lowParam) } },
       ],
     })
       .sort({ openTime: 1 })
       .exec()
       
-      // console.log("Код для роботи з документом >>", document);
+      console.log("Код для роботи з документом >>", document);
       return document
 
   } catch (err) {
@@ -103,3 +107,15 @@ module.exports = {
   getFirstCandle,
   getCandle,
 };
+
+
+
+// {
+//   openTime: { $gte: 1493596800000 },
+//   closeTime: { $lte: 1682985600000 },
+//   $or: [
+//     { high: { $gte: 4274.84696703 } },
+//     { high: { $gte: null } },
+//     { low: { $lte: 4232.52174954 } },
+//   ],
+// }
