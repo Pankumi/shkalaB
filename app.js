@@ -2,26 +2,30 @@ const mongoose = require("mongoose");
 
 const {
   createScaleArray,
-  filterArrayByRange,
-  filterScaleByCandle,
+  updatesBuyAndDone,
+  updatesBuy,
   findTopAndDown,
-} = require("./fuctions"); // створ. шкали
+} = require("./fuctions");
 const getBinanceData = require("./request"); // binance api
 const { getFirstCandle, getCandle } = require("./mongo_db"); // схема локальної бд
 const { async } = require("regenerator-runtime");
 
 params = {
-  // початкові зн. шкали: мін. ціна, макс. ціна, крок %:
+  // початкові зн. шкали: початкова ціна, кінцева ціна, крок %, прибуток %:
   scaleStart: 1000,
-  scaleStep: 1,
   scaleEnd: 100000,
+  scaleStep: 1,
+  profit: 1,
   // дата початку і закінчення аналізу
   dataStart: "2017-05-01",
   dataEnd: "2023-05-02",
 };
 
 // **********
-const buy = {};
+//масив scale обов'єзково має бути впорядкований від меньшого до більшого
+let scale = [];
+let buy = [];
+let done = [];
 let candle = {};
 let queryParams = {
   dataStartMs: new Date(params.dataStart).getTime(),
@@ -33,7 +37,7 @@ let queryParams = {
 
 // **********
 // повертає шкалу // приймає об'єкт з нижнім/верхнім зн. і кроком шкали
-const scale = createScaleArray(params);
+scale = createScaleArray(params);
 
 // **********
 // Підключення до MongoDB
@@ -45,50 +49,78 @@ mongoose.connect("mongodb://127.0.0.1:27017/binance", {
 const db = mongoose.connection;
 
 const app = async () => {
+  const timeStart = new Date();
   console.log("start candle >> ", candle);
   console.log(" start buy >> ", buy);
+  console.log(" start done >> ", done);
   console.log(" start queryParams >> ", queryParams);
 
-  // 1 ЗАПИТ В БД ЗА СВІЧКОЮ
-  if( JSON.stringify(candle) === '{}' ) {
-    // Повертає першу свічку з проміжку // приймає об'їкт параметрів з часом початку відліку в мілесекундах
-    candle = await getFirstCandle(queryParams);
-    console.log("1 candle >> ", candle);
-  } else {
-    // Повертає наступну найближчу свічку яка або пересікає сходинку шкали або пересікає ордер на продаж
-    // приймає об'їкт (час початку/кінця періоду, 2 найближчі сходинки шкали buy - меньше/більше попередньої ціни, найменший ордер на продаж sell)
-    candle = await getCandle(queryParams);
-    console.log("1 candle >> ", candle);
-  }
+  for (let cycle = 1; cycle <= 100; cycle++) {
+    console.log("ПРОХІД >> ", cycle);
+    console.log(" точка виходу >> ", queryParams.lowSell);
+    console.log(" верхня точку входу >> ", queryParams.highStep);
+    console.log(" нижня точка входу >> ", queryParams.lowStep);
 
-  // TODO: 2 ПЕРЕВІРКА СВІЧКИ НА ПЕРЕТИН З ТОЧКАМИ ПРОДАЖУ ( зробити коли буде точка продажу )
+    // 1 ЗАПИТ В БД ЗА СВІЧКОЮ
+    if (JSON.stringify(candle) === "{}") {
+      // Повертає першу свічку з проміжку // приймає об'їкт параметрів з часом початку відліку в мілесекундах
+      candle = await getFirstCandle(queryParams);
+    } else {
+      // Повертає наступну найближчу свічку яка або пересікає сходинку шкали або пересікає ордер на продаж
+      // приймає об'їкт (час початку/кінця періоду, 2 найближчі сходинки шкали buy - меньше/більше попередньої ціни, найменший ордер на продаж sell)
+      candle = await getCandle(queryParams);
+    }
+    candle.high = parseFloat(candle.high);
+    candle.low = parseFloat(candle.low);
+    console.log("1 candle._id >> ", candle._id);
+    console.log("1 candle.high >> ", candle.high);
+    console.log("1 candle.low >> ", candle.low);
 
-  // 3 ПЕРЕВІРКА СВІЧКИ НА ПЕРЕТИН З ТОЧКАМИ КУПІВЛІ
-  // Повертає масив перетинів свічки зі шкалою // приймає шкалу (масив) i свчку (об'єкт)
-  const newBuy = filterScaleByCandle(scale, candle);
-  console.log(" 3 newBuy >> ", newBuy);
+    // TODO: 2 ПЕРЕВІРКА СВІЧКИ НА ПЕРЕТИН З ТОЧКАМИ ПРОДАЖУ ( зробити коли буде точка продажу )
+    // оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає масив buy, свічку (об'єкт), масив done
+    console.log(
+      "2 відкритих угод >> ",
+      buy.length,
+      "закритих угод >> ",
+      done.length
+    );
+    updatesBuyAndDone(buy, candle, done);
+    console.log(
+      "2 відкритих угод >> ",
+      buy.length,
+      "закритих угод >> ",
+      done.length
+    );
+    console.log("2 остання закритих угода >> ", done[done.length - 1]);
 
-  // Якщо свічка має перетини з точками купівлі оновлюєм об'єкт buy
-  if ( !JSON.stringify(newBuy) === "{}" ){
-    buy = { ...newBuy, ...buy };
-    console.log(" 3 buy >> ", buy);
+    // 3 ПЕРЕВІРКА СВІЧКИ НА ПЕРЕТИН З ТОЧКАМИ КУПІВЛІ
+    // Оновлює масив buy (додає відкриті угоди) // приймає шкалу, свчку, параметри, масив buy
+    updatesBuy(scale, candle, params, buy);
+    console.log("3 відкритих угод >> ", buy.length);
+    console.log("3 остання відкрита угода >> ", buy[buy.length - 1]);
+    // додаю до параметрів найменшу точку виходу
+    if (buy.length === 0) {
+      queryParams.lowSell = null;
+    } else {
+      queryParams.lowSell = buy[0].priceSell;
+      for (el of buy) {
+        if (queryParams.lowSell > el.priceSell) {
+          queryParams.lowSell = el.priceSell;
+        }
+      }
+    }
 
-    //TODO: розрахувати наступні точки пошуку
-  }
-
-  // 4 РОЗРАХУВАТИ НАСТУПНІ ТОЧКИ ПОШУКУ В БД
+    // 4 РОЗРАХУВАТИ НАСТУПНІ ТОЧКИ ПОШУКУ В БД
     // Повертає об'єкт { highStep, lowStep } сходинки шкали між якими знаходиться свічка. ( наступні buy )( наступні точки пошуку в бд )
     // приймає шкалу (масив) і свічку (об'єкт)
     const nextStepBuy = findTopAndDown(scale, candle);
-    console.log(" 4 nextStepBuy >> ", nextStepBuy);
+    // console.log(" 4 nextStepBuy >> ", nextStepBuy);
     queryParams = { ...queryParams, ...nextStepBuy };
-    console.log(" 4 queryParams >> ", queryParams);
-
+  }
 
   db.close();
   console.log("Скрипт дійшов до кінця");
+  console.log("timeEnd >>>", new Date() - timeStart);
 };
 app();
-
-
 //************************************************************************************************************************************* */

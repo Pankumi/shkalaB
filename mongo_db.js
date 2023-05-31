@@ -78,21 +78,20 @@ async function getFirstCandle(queryParams) {
 // повертає найближчу наступну свічку яка або пересікає сходинку шкали або пересікає ордер на продаж
 // приймає масив з: часом початку/кінця періоду, 2 найближчі сходинки шкали (buy): меньше/більше попередньої ціни, найменший ордер на продаж sell
 async function getCandle(queryParams) {
-  const { dataStartMs, dataEndMs, highParam, lowParam, buyParam } = queryParams;
+  const { dataStartMs, dataEndMs, highStep, lowStep, lowSell } = queryParams;
   try {
     const document = await BtcusdtModel.findOne({
       openTime: { $gte: dataStartMs },
       closeTime: { $lte: dataEndMs },
       $or: [
-        { high: { $gte: String(highParam) } },
-        { high: { $gte: String(buyParam) } },
-        { low: { $lte: String(lowParam) } },
+        { high: { $gte: String(highStep) } },
+        { high: { $gte: String(lowSell) } },
+        { low: { $lte: String(lowStep) } },
       ],
     })
       .sort({ openTime: 1 })
       .exec()
       
-      console.log("Код для роботи з документом >>", document);
       return document
 
   } catch (err) {
@@ -114,8 +113,16 @@ module.exports = {
 //   openTime: { $gte: 1493596800000 },
 //   closeTime: { $lte: 1682985600000 },
 //   $or: [
-//     { high: { $gte: 4274.84696703 } },
+//     { high: { $gte: '4274.84696703' } },
 //     { high: { $gte: null } },
-//     { low: { $lte: 4232.52174954 } },
+//     { low: { $lte: '4232.52174954' } },
 //   ],
 // }
+
+// ІНДЕКСУВАННЯ БД
+  // db.btcusdt_changes.createIndex({ openTime: 1, closeTime: 1 })
+  // db.btcusdt_changes.createIndex({ high: 1, low: 1 })
+  // db.btcusdt_changes.createIndex({ openTime: 1, high: 1 })
+  // db.btcusdt_changes.createIndex({ openTime: 1, low: 1 })
+
+  // db.btcusdt_changes.createIndex({ openTime: 1, low: 1, high: 1, low: 1 })
