@@ -5,6 +5,7 @@ const {
   updatesBuyAndDone,
   updatesBuy,
   findTopAndDown,
+  formatDate,
 } = require("./fuctions");
 const getBinanceData = require("./request"); // binance api
 const { getFirstCandle, getCandle } = require("./mongo_db"); // схема локальної бд
@@ -21,7 +22,7 @@ params = {
   dataEnd: "2023-05-02",
 };
 
-// **********
+// ЗМІННІ
 //масив scale обов'єзково має бути впорядкований від меньшого до більшого
 let scale = [];
 let buy = [];
@@ -50,13 +51,12 @@ const db = mongoose.connection;
 
 const app = async () => {
   const timeStart = new Date();
-  console.log("start candle >> ", candle);
-  console.log(" start buy >> ", buy);
-  console.log(" start done >> ", done);
-  console.log(" start queryParams >> ", queryParams);
+  console.log(" довжина шкали >> ", scale.length );
+  console.log(" стартові параметри >> ", queryParams);
 
-  for (let cycle = 1; cycle <= 100; cycle++) {
+  for (let cycle = 1; cycle <= 4; cycle++) {       // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     console.log("ПРОХІД >> ", cycle);
+    console.log(" почати з >> ", formatDate(queryParams.dataStartMs));
     console.log(" точка виходу >> ", queryParams.lowSell);
     console.log(" верхня точку входу >> ", queryParams.highStep);
     console.log(" нижня точка входу >> ", queryParams.lowStep);
@@ -70,34 +70,35 @@ const app = async () => {
       // приймає об'їкт (час початку/кінця періоду, 2 найближчі сходинки шкали buy - меньше/більше попередньої ціни, найменший ордер на продаж sell)
       candle = await getCandle(queryParams);
     }
-    candle.high = parseFloat(candle.high);
-    candle.low = parseFloat(candle.low);
+    candle.high = Number(candle.high);
+    candle.low = Number(candle.low);
+
     console.log("1 candle._id >> ", candle._id);
+    console.log("1 candle.openTime >> ", formatDate(candle.openTime));
+    console.log("1 candle.openTime >> ", candle.openTime);
     console.log("1 candle.high >> ", candle.high);
     console.log("1 candle.low >> ", candle.low);
 
     // TODO: 2 ПЕРЕВІРКА СВІЧКИ НА ПЕРЕТИН З ТОЧКАМИ ПРОДАЖУ ( зробити коли буде точка продажу )
     // оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає масив buy, свічку (об'єкт), масив done
     console.log(
-      "2 відкритих угод >> ",
+      "2 Ордери виконані >> ",
+      done.length,
+      "відкриті >> ",
       buy.length,
-      "закритих угод >> ",
-      done.length
     );
     updatesBuyAndDone(buy, candle, done);
     console.log(
-      "2 відкритих угод >> ",
+      "2 Ордери виконані >> ",
+      done.length,
+      "відкриті >> ",
       buy.length,
-      "закритих угод >> ",
-      done.length
     );
-    console.log("2 остання закритих угода >> ", done[done.length - 1]);
 
     // 3 ПЕРЕВІРКА СВІЧКИ НА ПЕРЕТИН З ТОЧКАМИ КУПІВЛІ
     // Оновлює масив buy (додає відкриті угоди) // приймає шкалу, свчку, параметри, масив buy
     updatesBuy(scale, candle, params, buy);
-    console.log("3 відкритих угод >> ", buy.length);
-    console.log("3 остання відкрита угода >> ", buy[buy.length - 1]);
+    console.log("3 Ордери відкриті >> ", buy.length);
     // додаю до параметрів найменшу точку виходу
     if (buy.length === 0) {
       queryParams.lowSell = null;

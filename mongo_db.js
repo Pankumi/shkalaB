@@ -64,7 +64,7 @@ async function getFirstCandle(queryParams) {
       .sort({ openTime: 1 }) // Сортування за зростанням
       .exec();
 
-    return document; // Повертаємо результат запиту
+    return document.toObject();
   } catch (error) {
     console.error("Помилка запиту в бд:", error);
   }
@@ -91,16 +91,13 @@ async function getCandle(queryParams) {
     })
       .sort({ openTime: 1 })
       .exec()
-      
-      return document
+      // console.log("0 !!!!!!!!!!", typeof document);
+      return document.toObject();
 
   } catch (err) {
         console.error("Помилка запиту в бд:", err);
   }
 }
-
-
-
 
 module.exports = {
   getFirstCandle,
@@ -113,9 +110,9 @@ module.exports = {
 //   openTime: { $gte: 1493596800000 },
 //   closeTime: { $lte: 1682985600000 },
 //   $or: [
-//     { high: { $gte: '4274.84696703' } },
-//     { high: { $gte: null } },
-//     { low: { $lte: '4232.52174954' } },
+//     { high: { $gte: '4360.77139107' } },
+//     { high: { $gte: 4360.77139107 } },
+//     { low: { $lte: '4274.84696703' } },
 //   ],
 // }
 
@@ -126,3 +123,8 @@ module.exports = {
   // db.btcusdt_changes.createIndex({ openTime: 1, low: 1 })
 
   // db.btcusdt_changes.createIndex({ openTime: 1, low: 1, high: 1, low: 1 })
+
+// {
+//   openTime: { $gte: 1502946300000 },
+//   closeTime: { $lte: 1502957077000 },
+// }

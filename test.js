@@ -1,36 +1,29 @@
+const mathjs = require("mathjs");
 
 
-let queryParams = {
-  highStep: null,
-  lowStep: null,
-  lowSell: 4,
+let candle = {};
+
+candle = {
+  openTime: 1502943420000,
+  open: '4261.48000000',
+  high: '4264.88000000',
+  low: '4261.48000000',
+  close: '4264.88000000',
+  volume: '0.07545500',
+  closeTime: 1502943479999,
+  quoteAssetVolume: '321.60333640',
+  numberOfTrades: 2,
+  takerBuyBaseAssetVolume: '0.07545500',
+  takerBuyQuoteAssetVolume: '321.60333640',
+  ignored: '0',
+  priceChange: 0.07978448801825999,
+  __v: 0
 };
 
-const buy = [
-  {
-    priceBuy: 1,
-    openTimeBuy: 1502954200000,
-    priceSell: 2
-  },
-  {
-    priceBuy: 2,
-    openTimeBuy: 1502964200000,
-    priceSell: 3
-  },
-  {
-    priceBuy: 3,
-    openTimeBuy: 1502974200000,
-    priceSell: 4
-  }
-];
 
+console.log("1 ТИП candle.high до >> ", typeof candle.high );
+candle.high = parseFloat(candle.high);
+candle.low = parseFloat(candle.low);
+console.log("1 ТИП candle.high після >> ", typeof candle.high );
 
-// console.log("A >>", a);
-if(queryParams.lowSell === null && )
-for( el of buy ){
-  if(queryParams.lowSell > el.priceSell){
-    queryParams.lowSell = el.priceSell;
-  }
-}
-
-console.log("queryParams.lowSell >>", queryParams.lowSell);
+// console.log("queryParams.lowSell >>", createScaleArray(params));

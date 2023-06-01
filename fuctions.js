@@ -28,6 +28,7 @@ function updatesBuyAndDone(buy, candle, done) {
     if (buy[i].priceSell >= low && buy[i].priceSell <= high) {
       // додаю час закриття угоди і додаю угоду в масив done
       buy[i].openTimeSell = openTime;
+      console.log("2 ЗАКРИТО ордер >> ", buy[i]);
       done.push(buy[i]);
 
       // видаляю з buy елемент уже виконаної угоди
@@ -42,18 +43,20 @@ function updatesBuy(scale, candle, params, buy) {
   const { high, low, openTime } = candle;
   const { profit } = params;
   const result = [];
-  // console.log("F updatesBuy high >> ", high, "low >> ", low);
 
   for (let el of scale) {
     // перевіряє перетин елемента шкали зі свічкою
-    if (el >= low && el <= high) {
-      // console.log("F updatesBuy el >> ", el);
+    
+    // console.log("3 !!!!! el >", el, typeof el, "!  high >", high, typeof high, "!  low >", low, typeof low, "!  статус >", high >= el && el >= low);
+    if ( high >= el && el >= low) {
+      console.log("3 зі свічкою перетинається сходинка >", el);
+
       // перевіряє відсутність в масиві buy елементу з такою ж ціною перетину
       let isDuplicate = false;
       for (let i = 0; i < buy.length; i++) {
-        // console.log("F updatesBuy i >> ", i);
         if (buy[i].priceBuy === el) {
           isDuplicate = true;
+          console.log("3 Вже є ордер >", el);
           break;
         }
       }
@@ -64,59 +67,39 @@ function updatesBuy(scale, candle, params, buy) {
           openTimeBuy: openTime,
           priceSell: mathjs.round(el * (1 + profit / 100), 8),
         });
+        console.log("3 ДОДАНО ордер >> ", 
+        {
+          priceBuy: el,
+          openTimeBuy: openTime,
+          priceSell: mathjs.round(el * (1 + profit / 100), 8),
+        });
       }
     }
   }
 }
 
-// ***********
-// // Якщо свічка має перетини з точками купівлі оновлюєм buy
-// function eddElementToBuy(buy, newBuy) {
-//   if (newBuy.length !== 0) {
-//     for (let i = 0; i < newBuy.length; i++) {
-//       let isDuplicate = false;
-//       for (let j = 0; j < buy.length; j++) {
-//         if (newBuy[i].priceBuy === buy[j].priceBuy) {
-//           isDuplicate = true;
-//           break;
-//         }
-//       }
-//       if (!isDuplicate) {
-//         buy.push(newBuy[i]);
-//       }
-//     }
-//   }
-//   return buy;
-// }
-
-// ***********
+// 4 ***********
 // Повертає сходинки шкали { top, down } між якими знаходиться свічка. ( наступні buy )( наступні точки пошуку в бд )
 // приймає шкалу (масив) і свічку (об'єкт). (масив обов'єзково має бути впорядкований від меньшого до більшого)
 // Якщо value більше за всі значення у scale, top буде null, а down буде максимальним значенням у scale.
 function findTopAndDown(scale, candle) {
-  const { low, high } = candle;
+  const { low, high, openTime, closeTime } = candle;
   let highStep = null;
   let lowStep = null;
+  const dataStartMs = closeTime + 1;
+  // console.log(" 4 candle !!!", candle);
 
   // Якщо свічка над шкалою значення присвоюється лише lowStep
   if (low > Math.max(...scale)) {
     lowStep = Math.max(...scale);
-    console.log(
-      `low свічки ${candle.low} більше шкали. Час відкриття ${new Date(
-        candle.openTime
-      )}`
-    );
+    console.log(`low свічки ${candle.low} більше шкали. Відкриття ${formatDate(openTime)}`);
     return { highStep, lowStep };
   }
 
   // Якщо свічка під шкалою значення присвоюється лише highStep
   if (high < Math.min(...scale)) {
     highStep = Math.min(...scale);
-    console.log(
-      `low свічки ${candle.low} маньше шкали. Час відкриття ${new Date(
-        candle.openTime
-      )}`
-    );
+    console.log(`low свічки ${candle.low} маньше шкали. Відкриття ${formatDate(openTime)}`);
     return { highStep, lowStep };
   }
 
@@ -137,14 +120,27 @@ function findTopAndDown(scale, candle) {
     }
   }
 
-  return { highStep, lowStep };
+  return { highStep, lowStep, dataStartMs, };
 }
 
 // ***********
+// форматувати дату
+function formatDate(openTime) {
+  const date = new Date(openTime);
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  
+  return `${year}.${month}.${day} ${hours}:${minutes}:${seconds}`;
+}
 
 module.exports = {
   createScaleArray,
   updatesBuyAndDone,
   updatesBuy,
   findTopAndDown,
+  formatDate,
 };
