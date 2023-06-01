@@ -1,0 +1,15 @@
+{
+  "name": "shkalab",
+  "version": "1.0.0",
+  "description": "",
+  "main": "apiB1.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mathjs": "^11.8.0",
+    "mongoose": "^7.2.2"
+  }
+}
