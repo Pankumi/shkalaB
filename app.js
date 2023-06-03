@@ -36,6 +36,12 @@ let queryParams = {
   lowSell: null,
 };
 
+let oldCandle = {};
+let bedCandle = {
+  calc: 0,
+  elements: []
+};
+
 // **********
 // повертає шкалу // приймає об'єкт з нижнім/верхнім зн. і кроком шкали
 scale = createScaleArray(params);
@@ -54,9 +60,13 @@ const app = async () => {
   console.log(" довжина шкали >> ", scale.length );
   console.log(" стартові параметри >> ", queryParams);
 
-  for (let cycle = 1; cycle <= 4; cycle++) {       // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    console.log("ПРОХІД >> ", cycle);
-    console.log(" почати з >> ", formatDate(queryParams.dataStartMs));
+  for (let cycle = 1; cycle <= 100; cycle++) { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    console.log("ПРОХІД >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ", cycle);
+    console.log(
+      " почати з >> ",
+      queryParams.dataStartMs,
+      formatDate(queryParams.dataStartMs)
+    );
     console.log(" точка виходу >> ", queryParams.lowSell);
     console.log(" верхня точку входу >> ", queryParams.highStep);
     console.log(" нижня точка входу >> ", queryParams.lowStep);
@@ -73,11 +83,10 @@ const app = async () => {
     candle.high = Number(candle.high);
     candle.low = Number(candle.low);
 
-    console.log("1 candle._id >> ", candle._id);
-    console.log("1 candle.openTime >> ", formatDate(candle.openTime));
-    console.log("1 candle.openTime >> ", candle.openTime);
-    console.log("1 candle.high >> ", candle.high);
-    console.log("1 candle.low >> ", candle.low);
+    console.log("1 СВІЧКА: ", candle._id);
+    console.log(" _____.openTime >> ",candle.openTime, formatDate(candle.openTime), "_____.closeTime >> ", candle.closeTime, formatDate(candle.closeTime));
+    console.log(" _____.high >> ", candle.high);
+    console.log(" _____.low >> ", candle.low);
 
     // TODO: 2 ПЕРЕВІРКА СВІЧКИ НА ПЕРЕТИН З ТОЧКАМИ ПРОДАЖУ ( зробити коли буде точка продажу )
     // оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає масив buy, свічку (об'єкт), масив done
@@ -85,14 +94,14 @@ const app = async () => {
       "2 Ордери виконані >> ",
       done.length,
       "відкриті >> ",
-      buy.length,
+      buy.length
     );
     updatesBuyAndDone(buy, candle, done);
     console.log(
       "2 Ордери виконані >> ",
       done.length,
       "відкриті >> ",
-      buy.length,
+      buy.length
     );
 
     // 3 ПЕРЕВІРКА СВІЧКИ НА ПЕРЕТИН З ТОЧКАМИ КУПІВЛІ
@@ -117,6 +126,27 @@ const app = async () => {
     const nextStepBuy = findTopAndDown(scale, candle);
     // console.log(" 4 nextStepBuy >> ", nextStepBuy);
     queryParams = { ...queryParams, ...nextStepBuy };
+
+    // 5 ПЕРЕВІРКА РЕЛЕВАНТНОСТІ СВІЧКИ
+    if (oldCandle.close !== candle.open) {
+      const difference = oldCandle.close - candle.open;
+      bedCandle.calc += 1;
+
+      const el ={
+        number: bedCandle.calc,
+        idClose: oldCandle.id,
+        timeClose: oldCandle.closeTime,
+        idOpen: candle.id,
+        timeOpen: candle.openTime,
+        difference,
+      };
+      bedCandle.elements.push(el);
+
+      console.log("5 >> КОСЯЧНА #>> ", bedCandle.calc, " різниця закриття/відкриття ", difference);
+
+      // оновлення bedCandle
+      oldCandle = candle;
+    }
   }
 
   db.close();

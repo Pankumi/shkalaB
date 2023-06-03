@@ -126,5 +126,5 @@ module.exports = {
 
 // {
 //   openTime: { $gte: 1502946300000 },
-//   closeTime: { $lte: 1502957077000 },
+//   closeTime: { $lte: 1502947500 },
 // }
