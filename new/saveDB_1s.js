@@ -145,3 +145,9 @@ async function getSwings() {
 }
 // Виклик асинхронної функції
 getSwings();
+
+
+// ДОДАТИ ПОЛЕ до всіх об'єктів колекції
+// db.btcusdt_1seconds.updateMany({}, { $set: { type: "1s" } })
+// db.btcusdt_1m_cropped.updateMany({}, { $set: { type: "1m" } })
+

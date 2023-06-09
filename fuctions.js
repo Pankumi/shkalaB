@@ -19,13 +19,13 @@ function createScaleArray(params) {
 }
 
 // 2 ***********
-// оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає масив buy, свічку (об'єкт), масив done
-function updatesBuyAndDone(buy, candle, done) {
-  const { high, low, openTime } = candle;
+// оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає свічку (об'єкт), масив buy, масив done
+function updatesBuyAndDone(candle, buy, done) {
+  const { high, openTime } = candle;
 
   for (let i = buy.length - 1; i >= 0; i--) {
-    // перевіряє чи поле priceSell кожного елемента buy потрапляє в межі свічки
-    if (buy[i].priceSell >= low && buy[i].priceSell <= high) {
+    // перевіряє чи поле priceSell кожного елемента buy меньше за максимум свічки
+    if (buy[i].priceSell < high) {
       // додаю час закриття угоди і додаю угоду в масив done
       buy[i].openTimeSell = openTime;
       console.log("2 ЗАКРИТО ордер >> ", buy[i]);
@@ -38,17 +38,20 @@ function updatesBuyAndDone(buy, candle, done) {
 }
 
 // 3 ***********
-// оновлює масив buy // приймає шкалу (масив), свічку (об'єкт), параметри (об'єкт), buy (масив)
-function updatesBuy(scale, candle, params, buy) {
-  const { high, low, openTime } = candle;
+// оновлює масив buy // приймає: шкалу (масив), свічку (об'єкт), попередню свічку (об'єкт), об'єкт з параметром profit, buy (масив)
+function updatesBuy(scale, candle, previousCandle, params, buy) {
+  console.log("3 <<<<<<<<<<<<<< Candle >>>>>>>>>>>>>>>");
+  console.log("3 previousCandle >", previousCandle);
+  console.log("3 Candle >", candle);
+  console.log("3 <<<<<<<<<<<<<< Candle >>>>>>>>>>>>>>>");
+  const { low, openTime } = candle;
   const { profit } = params;
-  const result = [];
+  // const result = [];
 
   for (let el of scale) {
     // перевіряє перетин елемента шкали зі свічкою
     
-    // console.log("3 !!!!! el >", el, typeof el, "!  high >", high, typeof high, "!  low >", low, typeof low, "!  статус >", high >= el && el >= low);
-    if ( high >= el && el >= low) {
+    if ( previousCandle.high >= el && el >= low) {
       console.log("3 зі свічкою перетинається сходинка >", el);
 
       // перевіряє відсутність в масиві buy елементу з такою ж ціною перетину
@@ -62,52 +65,73 @@ function updatesBuy(scale, candle, params, buy) {
       }
       // Якщо в buy елементу з такою ж ціною не знайдено додаю в buy новий елемент
       if (!isDuplicate) {
-        buy.push({
+        const newBuyEl = {
           priceBuy: el,
           openTimeBuy: openTime,
           priceSell: mathjs.round(el * (1 + profit / 100), 8),
-        });
-        console.log("3 ДОДАНО ордер >> ", 
-        {
-          priceBuy: el,
-          openTimeBuy: openTime,
-          priceSell: mathjs.round(el * (1 + profit / 100), 8),
-        });
+        }
+        buy.push(newBuyEl);
+        console.log("3 ДОДАНО ордер >> ", newBuyEl);
       }
     }
   }
 }
 
 // 4 ***********
+// модифікує сет ордерів і сет преОрдерів
+// Приймає свічку, сет преОрдерів, сет ордерів
+function findNewOrders(candle, preOrders, orders) {
+  const { low, high } = candle;
+  // const arr =[];
+
+  // в цьому випадку <= доречно так як для виставлення ордеру достатньо щоб ціна торкнулась позначки
+  for(const el of preOrders){
+    if( low <= el && el <= high ){
+      // arr.push(el);
+      // модифікую масив ордерів (додаю нові)
+      orders.add(el);
+      // модифікую масив преОрдерів (видаляю перенесені до ордерів)
+      preOrders.delete(el)
+    }
+  }
+
+  // // модифікую масив ордерів (додаю нові)
+  // orders = [...new Set([...arr, ...orders])];
+
+  // // модифікую масив преОрдерів (видаляю перенесені до ордерів)
+  // preOrders = preOrders.filter((el) => !arr.includes(el));
+}
+
+// 5 ***********
 // Повертає сходинки шкали { top, down } між якими знаходиться свічка. ( наступні buy )( наступні точки пошуку в бд )
 // приймає шкалу (масив) і свічку (об'єкт). (масив обов'єзково має бути впорядкований від меньшого до більшого)
 // Якщо value більше за всі значення у scale, top буде null, а down буде максимальним значенням у scale.
 function findTopAndDown(scale, candle) {
   const { low, high, openTime, closeTime } = candle;
-  let highStep = null;
-  let lowStep = null;
+  let preOrder = null;
+  let down = null;
   const dataStartMs = closeTime + 1;
   // console.log(" 4 candle !!!", candle);
 
-  // Якщо свічка над шкалою значення присвоюється лише lowStep
+  // Якщо свічка над шкалою значення присвоюється лише down
   if (low > Math.max(...scale)) {
-    lowStep = Math.max(...scale);
+    down = Math.max(...scale);
     console.log(`low свічки ${candle.low} більше шкали. Відкриття ${formatDate(openTime)}`);
-    return { highStep, lowStep };
+    return { preOrder, down };
   }
 
-  // Якщо свічка під шкалою значення присвоюється лише highStep
+  // Якщо свічка під шкалою значення присвоюється лише preOrder
   if (high < Math.min(...scale)) {
-    highStep = Math.min(...scale);
+    preOrder = Math.min(...scale);
     console.log(`low свічки ${candle.low} маньше шкали. Відкриття ${formatDate(openTime)}`);
-    return { highStep, lowStep };
+    return { preOrder, down };
   }
 
   // Якщо свічка всередині шкалуи:
   // знаходим 1 точку шкали вищє свічки
   for (let i = 0; i < scale.length; i++) {
     if (scale[i] > high) {
-      highStep = scale[i];
+      preOrder = scale[i];
       break;
     }
   }
@@ -115,12 +139,54 @@ function findTopAndDown(scale, candle) {
   // знаходим 1 точку шкали нищє свічки
   for (let i = scale.length - 1; i >= 0; i--) {
     if (scale[i] < low) {
-      lowStep = scale[i];
+      down = scale[i];
       break;
     }
   }
 
-  return { highStep, lowStep, dataStartMs, };
+  return { preOrder, down, dataStartMs, };
+}
+
+// ***********
+// 5 РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
+// модифікує обьєкт queryParams ()
+function findNextOrders(scale, candle, preOrders, orders){
+  const { low, high, openTime, closeTime } = candle;
+  let up = null;
+  let down = null;
+  const dataStartMs = closeTime + 1;
+  // console.log(" 4 candle !!!", candle);
+
+  // Якщо свічка над шкалою значення присвоюється лише orders
+  if (low > Math.max(...scale)) {
+    down = Math.max(...scale);
+    console.log(`low свічки ${candle.low} більше шкали. Відкриття ${formatDate(openTime)}`);
+  }
+
+  // Якщо свічка під шкалою значення присвоюється лише up
+  if (high < Math.min(...scale)) {
+    up = Math.min(...scale);
+    console.log(`low свічки ${candle.low} маньше шкали. Відкриття ${formatDate(openTime)}`);
+  }
+
+  // Якщо свічка всередині шкалуи:
+  // знаходим 1 точку шкали вищє свічки
+  for (let i = 0; i < scale.length; i++) {
+    if (scale[i] > high) {
+      up = scale[i];
+      break;
+    }
+  }
+
+  // знаходим 1 точку шкали нищє свічки
+  for (let i = scale.length - 1; i >= 0; i--) {
+    if (scale[i] < low) {
+      down = scale[i];
+      break;
+    }
+  }
+
+  orders = [...new Set([...orders, down])];
 }
 
 // ***********
@@ -141,6 +207,11 @@ module.exports = {
   createScaleArray,
   updatesBuyAndDone,
   updatesBuy,
+  findNewOrders,
   findTopAndDown,
+  findNextOrders,
   formatDate,
 };
+
+
+

@@ -1,7 +1,7 @@
 
 const mongoose = require("mongoose");
 
-const { handleMongooseError } = require("./helpers/index");
+const { handleMongooseError } = require("../helpers/index");
 
 // Створення схеми
 const candleSchema = new mongoose.Schema(

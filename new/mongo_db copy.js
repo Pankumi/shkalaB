@@ -28,31 +28,13 @@ const btcusdtSchema = new mongoose.Schema({
   ignored: String,
   priceChange: Number,
   openT: Date,
+  type: String,
 });
 
 // Створення моделі на основі схеми
 const BtcusdtModel = mongoose.model(bdCollection, btcusdtSchema);
 
 // ************
-// //отримуе першу свічку з проміжку
-// //приймає час початку інтервалу в мілесекундах
-// async function getFirstCandle (startTime){
-//   await BtcusdtModel.findOne({ openTime: { $gte: startTime } })
-//     .sort({ openTime: 1 }) // Сортування за зростанням
-//     .exec()
-//     .then((document) => {
-//       if (document) {
-//         return document
-//       } else {
-//         console.log("Документ не знайдено");
-//       }
-//     })
-//     .catch((error) => {
-//       console.error("Помилка запиту в бд:", error);
-//     });
-// };
-
-
 // повертає першу свічку з проміжку
 // приймає час початку інтервалу в мілесекундах
 async function getFirstCandle(queryParams) {
@@ -105,7 +87,7 @@ module.exports = {
 };
 
 
-
+// ШАБЛОНИ ПОШУКУ:
 // {
 //   openTime: { $gte: 1493596800000 },
 //   closeTime: { $lte: 1682985600000 },
@@ -116,6 +98,11 @@ module.exports = {
 //   ],
 // }
 
+// {
+//   openTime: { $gte: 1502946300000 },
+//   closeTime: { $lte: 1502947500 },
+// }
+
 // ІНДЕКСУВАННЯ БД
   // db.btcusdt_changes.createIndex({ openTime: 1, closeTime: 1 })
   // db.btcusdt_changes.createIndex({ high: 1, low: 1 })
@@ -124,7 +111,3 @@ module.exports = {
 
   // db.btcusdt_changes.createIndex({ openTime: 1, low: 1, high: 1, low: 1 })
 
-// {
-//   openTime: { $gte: 1502946300000 },
-//   closeTime: { $lte: 1502947500 },
-// }

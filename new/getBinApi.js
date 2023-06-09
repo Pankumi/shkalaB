@@ -69,3 +69,5 @@ async function logKlinesData() {
 logKlinesData();
 
 module.exports = { getKlinesData };
+
+
