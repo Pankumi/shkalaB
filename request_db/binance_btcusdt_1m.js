@@ -63,15 +63,18 @@ async function getFirstCandleFromBD(queryParams) {
 // повертає найближчу наступну свічку яка або пересікає сходинку шкали або пересікає ордер на продаж
 // приймає масив з: часом початку/кінця періоду, 2 найближчі сходинки шкали (buy): меньше/більше попередньої ціни, найменший ордер на продаж sell
 async function getCandleFromBD(queryParams) {
-  const { dataStartMs, dataEndMs, highStep, lowStep, lowSell } = queryParams;
+  const { dataStartMs, dataEndMs, minPreOrder, maxOrder, minOrderSell } = queryParams;
   try {
     const document = await BtcusdtModel.findOne({
       openTime: { $gte: dataStartMs },
       closeTime: { $lte: dataEndMs },
       $or: [
-        { high: { $gt: String(lowSell) } },
-        { low: { $lt: String(lowStep) } },
-        { high: { $gte: String(highStep) } },
+        // вищє ціни нижнього ордеру sell
+        { high: { $gt: String(minOrderSell) } },
+        // ницє ціни верхнього ордеру buy 
+        { low: { $lt: String(maxOrder) } },
+        // вицє/дорівнює ціни преордеру
+        { high: { $gte: String(minPreOrder) } },
       ],
     })
       .sort({ openTime: 1 })

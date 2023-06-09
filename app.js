@@ -7,6 +7,7 @@ const {
   findNewOrders,
   findTopAndDown,
   findNextOrders,
+  updateQueryParams,
 
   formatDate,
 } = require("./fuctions");
@@ -41,9 +42,8 @@ let queryParams = {
   dataStartMs: new Date(params.dataStart).getTime(),
   dataEndMs: new Date(params.dataEnd).getTime(),
 
-  highStep: null,
-  lowStep: null,
-  lowSell: null,
+  highStep: null, // del
+  lowStep: null, // del
 
   minOrderSell: null,
   minPreOrder: null,
@@ -72,13 +72,14 @@ const app = async () => {
   console.log(" стартові параметри >> ", queryParams);
 
   for (let cycle = 1; cycle <= 10; cycle++) { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
     console.log("ПРОХІД >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ", cycle);
     console.log(
       " почати з >> ",
       queryParams.dataStartMs,
       formatDate(queryParams.dataStartMs)
     );
-    console.log(" мін. точка продажу >> ", queryParams.lowSell);
+    console.log(" мін. точка продажу >> ", queryParams.minOrderSell);
     console.log(" точку купівлі над попередньою свічкою>> ", queryParams.highStep);
     console.log(" точка купівлі під попередньою свічкою>> ", queryParams.lowStep);
 
@@ -94,6 +95,7 @@ const app = async () => {
       // приймає об'їкт (час початку/кінця періоду, 2 найближчі сходинки шкали buy - меньше/більше попередньої ціни, найменший ордер на продаж sell)
       candle = await getCandleFromBD(queryParams);
     }
+    // 1.1 модифікую об'єкт candle
     candle.high = Number(candle.high);
     candle.low = Number(candle.low);
 
@@ -119,15 +121,17 @@ const app = async () => {
       console.log("1.2 СВІЧКА НИЩЕ ЗАПИТУ ");
     }
 
-    // TODO: 2 ПЕРЕВІРКА СПРАЦЮВАННЯ ОРДЕРІВ НА ПРОДАЖ ( зробити коли буде точка продажу )
-    // оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає свічку (об'єкт), масив buy, масив done
     console.log(
       "2 Ордери виконані >> ",
       done.length,
       "відкриті >> ",
       buy.length
     );
+
+    // 2 СПРАЦЮВАННЯ ОРДЕРІВ НА ПРОДАЖ - ПЕРЕНОС З BUY В DONE
+    // оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає свічку (об'єкт), масив buy, масив done
     updatesBuyAndDone(candle, buy, done);
+
     console.log(
       "2 Ордери виконані >> ",
       done.length,
@@ -137,35 +141,24 @@ const app = async () => {
 
     // 3 СПРАЦЮВАННЯ ОРДЕРІВ НА КУПІВЛЮ
     // Оновлює масив buy (додає відкриті угоди) // приймає шкалу, свчку, попередню свічку, параметри (profit), масив buy
-    updatesBuy(scale, candle, previousCandle, params, buy);
+    // Оновлює масив buy (додає відкриті угоди) // свчічку (candle), сет (orders), масив(buy)
+
+    // updatesBuy(scale, candle, previousCandle, params, buy); // del
+    updatesBuy(candle, orders, buy);
     console.log("3 Ордери відкриті >> ", buy.length);
-    // додаю до параметрів запиту найменший ордер на продаж
-    if (buy.length === 0) {
-      queryParams.lowSell = null;
-    } else {
-      queryParams.lowSell = buy[0].priceSell;
-      for (el of buy) {
-        if (queryParams.lowSell > el.priceSell) {
-          queryParams.lowSell = el.priceSell;
-        }
-      }
-    }
 
     // 4 СПРАЦЮВАННЯ ПРЕ-ОРДЕРІВ - ПЕРЕНОС ДО ОРДЕРІВ У ВИПАДКУ ПЕРЕТИНУ ПРЕОРДЕРА СВІЧКОЮ
     // Оновлює масив order (додає ордери на купівлю), оновлює масив preOrders (видаляє перенесені) // приймає свічку і преОрдери
     findNewOrders(candle, preOrders, orders);
-
-    // 5 РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
-    // Повертає об'єкт { highStep, lowStep } сходинки шкали між якими знаходиться свічка. ( наступні buy )( наступні точки пошуку в бд )
-    // приймає шкалу (масив) і свічку (об'єкт)
-    const nextStepBuy = findTopAndDown(scale, candle);
-    // console.log(" 4 nextStepBuy >> ", nextStepBuy);
-    queryParams = { ...queryParams, ...nextStepBuy };
-
     
     // 5 РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
-    // модифікує обьєкти preOrders і orders
+    // модифікує сети preOrders і orders сходинки шкали між якими знаходиться свічка. ( наступні точки пошуку в бд )
+    // приймає шкалу (масив), свічку (об'єкт) і ордери (масив обов'єзково має бути впорядкований від меньшого до більшого)
     findNextOrders(scale, candle, preOrders, orders);
+
+    // 6 ФОРМУЄМ ПАРАМЕТРИ НАСТУПНОГО ЗАПИТУ
+    // модифікує queryParams
+    updateQueryParams(queryParams, buy, preOrders, orders);
   }
 
   db.close();
