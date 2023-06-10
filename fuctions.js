@@ -10,6 +10,7 @@ function createScaleArray(params) {
 
   while (currentValue <= scaleEnd) {
     scale.push(mathjs.round(currentValue, 8));
+
     currentValue = mathjs.evaluate(
       `${currentValue} + (${currentValue} * ${scaleStep / 100})`
     );
@@ -28,7 +29,7 @@ function updatesBuyAndDone(candle, buy, done) {
     if (buy[i].priceSell < high) {
       // додаю час закриття угоди і додаю угоду в масив done
       buy[i].openTimeSell = openTime;
-      console.log("2 ЗАКРИТО ордер >> ", buy[i]);
+      // console.log("2 ЗАКРИТО ордер >> ", buy[i]);
       done.push(buy[i]);
 
       // видаляю з buy елемент уже виконаної угоди
@@ -53,7 +54,7 @@ function updatesBuy(candle, orders, buy, params){
       for (let i = 0; i < buy.length; i++) {
         if (buy[i].priceBuy === el) {
           isDuplicate = true;
-          console.log("3 Вже є ордер >", el);
+          // console.log("3 Вже є ордер >", el);
           break;
         }
       }
@@ -65,7 +66,7 @@ function updatesBuy(candle, orders, buy, params){
           priceSell: mathjs.round(el * (1 + profit / 100), 8),
         };
         buy.push(newBuyEl);
-        console.log("3 ДОДАНО ордер >> ", newBuyEl);
+        // console.log("3 ДОДАНО ордер >> ", newBuyEl);
       }
 
       // модифікую сет преОрдерів (видаляю з orders перенесені до buy ордери)
@@ -77,11 +78,18 @@ function updatesBuy(candle, orders, buy, params){
 // 4 ***********
 // модифікує сет ордерів і сет преОрдерів
 // Приймає свічку, сет преОрдерів, сет ордерів
-function findNewOrders(candle, preOrders, orders) {
+function findNewOrders(candle, preOrders, orders, params) {
   const { low, high } = candle;
   // в цьому випадку <= доречно так як для виставлення ордеру достатньо щоб ціна торкнулась позначки
   for (const el of preOrders) {
     if (low <= el && el <= high) {
+
+      // збільшити ціну преордеру при переносі до ордерів
+      // TODO: поки неможливо бо призведе до дублювання з ордерами які трохи відрізняються і виставляються в ф5 при падінні ціни
+      // const newOrderValue = el / 100 * (100 + params.orderAddedValue)
+      // const orderValue = mathjs.round(newOrderValue, 8);
+      // orders.add(orderValue);
+
       // модифікую сет ордерів (додаю нові)
       orders.add(el);
       // модифікую сет преОрдерів (видаляю з preOrders перенесені до orders)
