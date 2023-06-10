@@ -38,47 +38,7 @@ function updatesBuyAndDone(candle, buy, done) {
 }
 
 // 3 ***********
-// оновлює масив buy // приймає: шкалу (масив), свічку (об'єкт), попередню свічку (об'єкт), об'єкт з параметром profit, buy (масив)
-function updatesBuy2(scale, candle, previousCandle, params, buy) {
-  console.log("3 <<<<<<<<<<<<<< Candle >>>>>>>>>>>>>>>");
-  console.log("3 previousCandle >", previousCandle);
-  console.log("3 Candle >", candle);
-  console.log("3 <<<<<<<<<<<<<< Candle >>>>>>>>>>>>>>>");
-  const { low, openTime } = candle;
-  const { profit } = params;
-  // const result = [];
-
-  for (let el of scale) {
-    // перевіряє перетин елемента шкали зі свічкою
-
-    if (previousCandle.high >= el && el >= low) {
-      console.log("3 зі свічкою перетинається сходинка >", el);
-
-      // перевіряє відсутність в масиві buy елементу з такою ж ціною перетину
-      let isDuplicate = false;
-      for (let i = 0; i < buy.length; i++) {
-        if (buy[i].priceBuy === el) {
-          isDuplicate = true;
-          console.log("3 Вже є ордер >", el);
-          break;
-        }
-      }
-      // Якщо в buy елементу з такою ж ціною не знайдено додаю в buy новий елемент
-      if (!isDuplicate) {
-        const newBuyEl = {
-          priceBuy: el,
-          openTimeBuy: openTime,
-          priceSell: mathjs.round(el * (1 + profit / 100), 8),
-        };
-        buy.push(newBuyEl);
-        console.log("3 ДОДАНО ордер >> ", newBuyEl);
-      }
-    }
-  }
-}
-
-// 3 ***********
-// Оновлює масив buy (додає відкриті угоди) // свчічку (candle), сет (orders), масив(buy), об'єкт з профітом(params)
+// Оновлює масив buy (додає відкриті угоди) // приймає свчічку (candle), сет (orders), масив(buy), об'єкт з профітом(params)
 function updatesBuy(candle, orders, buy, params){
   const { low, high, openTime } = candle;
   const { profit } = params;
@@ -130,67 +90,17 @@ function findNewOrders(candle, preOrders, orders) {
   }
 }
 
-// 5 ***********
-// Повертає сходинки шкали { top, down } між якими знаходиться свічка. ( наступні buy )( наступні точки пошуку в бд )
-// приймає шкалу (масив) і свічку (об'єкт). (масив обов'єзково має бути впорядкований від меньшого до більшого)
-// Якщо value більше за всі значення у scale, top буде null, а down буде максимальним значенням у scale.
-function findTopAndDown(scale, candle) {
-  const { low, high, openTime, closeTime } = candle;
-  let preOrder = null;
-  let down = null;
-  const dataStartMs = closeTime + 1;
-  // console.log(" 4 candle !!!", candle);
-
-  // Якщо свічка над шкалою значення присвоюється лише down
-  if (low > Math.max(...scale)) {
-    down = Math.max(...scale);
-    console.log(
-      `low свічки ${candle.low} більше шкали. Відкриття ${formatDate(openTime)}`
-    );
-    return { preOrder, down };
-  }
-
-  // Якщо свічка під шкалою значення присвоюється лише preOrder
-  if (high < Math.min(...scale)) {
-    preOrder = Math.min(...scale);
-    console.log(
-      `low свічки ${candle.low} маньше шкали. Відкриття ${formatDate(openTime)}`
-    );
-    return { preOrder, down };
-  }
-
-  // Якщо свічка всередині шкалуи:
-  // знаходим 1 точку шкали вищє свічки
-  for (let i = 0; i < scale.length; i++) {
-    if (scale[i] > high) {
-      preOrder = scale[i];
-      break;
-    }
-  }
-
-  // знаходим 1 точку шкали нищє свічки
-  for (let i = scale.length - 1; i >= 0; i--) {
-    if (scale[i] < low) {
-      down = scale[i];
-      break;
-    }
-  }
-
-  return { preOrder, down, dataStartMs };
-}
-
 // ***********
 // 5 РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
 // приймає шкалу (масив), свічку (об'єкт) і ордери (масив обов'єзково має бути впорядкований від меньшого до більшого)
 // модифікую сети orders і сет preOrders
-function findNextOrders(scale, candle, preOrders, orders) {
-  const { low, high, openTime, closeTime } = candle;
-  let up = null;
-  let down = null;
-  const dataStartMs = closeTime + 1;
-  // console.log(" 4 candle !!!", candle);
+function findNextOrders(scale, candle, preOrders, orders, params) {
+  const { low, high, openTime } = candle;
+  const { preOrdersLimit, ordersLimit } = params;
+  let preOrdersCalc = 0;
+  let ordersCalc = 0;
 
-  // Якщо свічка над шкалою значення додається лише orders
+  // Якщо свічка над шкалою значення додається лише крайній orders
   if (low > Math.max(...scale)) {
     orders.add(Math.max(...scale));
     console.log(
@@ -199,7 +109,7 @@ function findNextOrders(scale, candle, preOrders, orders) {
     return;
   }
 
-  // Якщо свічка під шкалою значення додається лише preOrders
+  // Якщо свічка під шкалою значення додається лише крайній preOrders
   if (high < Math.min(...scale)) {
     preOrders.add(Math.min(...scale));
     console.log(
@@ -209,21 +119,27 @@ function findNextOrders(scale, candle, preOrders, orders) {
   }
 
   // Якщо свічка всередині шкали:
-  // знаходим 1 точку шкали вищє свічки
-  // TODO - додавати 5 точок шкали
+  // знаходим точки шкали вищє свічки
   for (let i = 0; i < scale.length; i++) {
     if (scale[i] > high) {
       preOrders.add(scale[i]);
-      break;
+
+      preOrdersCalc ++;
+      if (preOrdersCalc >= preOrdersLimit){
+        break;
+      }
     }
   }
 
-  // знаходим 1 точку шкали нищє свічки
-  // TODO - додавати 5 точок шкали
+  // знаходим точки шкали нищє свічки
   for (let i = scale.length - 1; i >= 0; i--) {
     if (scale[i] < low) {
       orders.add(scale[i]);
-      break;
+
+      ordersCalc ++;
+      if (ordersCalc >= ordersLimit){
+        break;
+      }
     }
   }
 }
@@ -239,23 +155,23 @@ function updateQueryParams(queryParams, candle, buy, preOrders, orders) {
   if (buy.length === 0) {
     queryParams.minOrderSell = null;
   } else {
-    const allPriceSell = buy.map((obj) => obj.priceSell);
+    const allPriceSell = buy.map( (obj) => obj.priceSell );
     queryParams.minOrderSell = Math.min(...allPriceSell);
   }
 
   // найменший ордер на купівлю
-  const arrPreOrders = Array.from(preOrders);
-  if (arrPreOrders.length === 0) {
+  if (preOrders.size === 0) {
     queryParams.minPreOrder = null;
   } else {
+    const arrPreOrders = Array.from(preOrders);
     queryParams.minPreOrder = Math.min(...arrPreOrders);
   }
   
   // найбільший ордер на купівлю
-  const arrOrders = Array.from(orders);
-  if (arrOrders.length === 0) {
+  if (orders.size === 0) {
     queryParams.maxOrder = null;
   } else {
+    const arrOrders = Array.from(orders);
     queryParams.maxOrder = Math.max(...arrOrders);
   }
 }
@@ -279,7 +195,6 @@ module.exports = {
   updatesBuyAndDone,
   updatesBuy,
   findNewOrders,
-  findTopAndDown,
   findNextOrders,
   updateQueryParams,
   formatDate,

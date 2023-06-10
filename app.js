@@ -5,7 +5,6 @@ const {
   updatesBuyAndDone,
   updatesBuy,
   findNewOrders,
-  findTopAndDown,
   findNextOrders,
   updateQueryParams,
 
@@ -20,14 +19,20 @@ const {
 
 // ЗМІННІ **********
 const params = {
+  // націнка яку я планую заробити
+  profit: 1 ,
+  // при спрацюванні преордеру збільшити ціну преордеру при переносі до ордерів // дозволить ордеру виконатись якщо ціна іде вгору
+  orderAddedValue: 0.1 ,
   // початкові зн. шкали: початкова ціна, кінцева ціна, крок %, прибуток %:
-  scaleStart: 1000,
-  scaleEnd: 100000,
-  scaleStep: 1,
-  profit: 1,
+  scaleStart: 1000 ,
+  scaleEnd: 100000 ,
+  scaleStep: 1 ,
+  // ліміт ордерів які виставляти
+  preOrdersLimit : 7 ,
+  ordersLimit : 7 ,
   // дата початку і закінчення аналізу
-  dataStart: "2017-05-01",
-  dataEnd: "2023-05-02",
+  dataStart: "2017-05-01" ,
+  dataEnd: "2023-05-02" ,
 };
 
 //масив scale обов'єзково має бути впорядкований від меньшого до більшого
@@ -73,7 +78,7 @@ const app = async () => {
 
   for (let cycle = 1; cycle <= 10; cycle++) { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    console.log("ПРОХІД >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ", cycle);
+    console.log("<<<<<<<<<<<<<<<<< ПРОХІД >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ", cycle);
     console.log(
       " почати з >> ",
       queryParams.dataStartMs,
@@ -122,9 +127,9 @@ const app = async () => {
     }
 
     console.log(
-      "2 Ордери виконані >> ",
+      "2 Виконані (done) >> ",
       done.length,
-      "відкриті >> ",
+      "відкриті (buy) >> ",
       buy.length
     );
 
@@ -133,32 +138,32 @@ const app = async () => {
     updatesBuyAndDone(candle, buy, done);
 
     console.log(
-      "2 Ордери виконані >> ",
+      "2 Виконані (done) >> ",
       done.length,
-      "відкриті >> ",
+      "відкриті (buy) >> ",
       buy.length
     );
 
     // 3 СПРАЦЮВАННЯ ОРДЕРІВ НА КУПІВЛЮ
-    // Оновлює масив buy (додає відкриті угоди) // приймає шкалу, свчку, попередню свічку, параметри (profit), масив buy
-    // Оновлює масив buy (додає відкриті угоди) // свчічку (candle), сет (orders), масив(buy)
-
-    // updatesBuy(scale, candle, previousCandle, params, buy); // del
-    updatesBuy(candle, orders, buy);
-    console.log("3 Ордери відкриті >> ", buy.length);
+    // Оновлює масив buy (додає відкриті угоди) // приймає свчічку (candle), сет (orders), масив(buy), об'єкт з профітом(params)
+    updatesBuy(candle, orders, buy, params);
+    console.log("3 відкриті (buy) >> ", buy.length, buy);
 
     // 4 СПРАЦЮВАННЯ ПРЕ-ОРДЕРІВ - ПЕРЕНОС ДО ОРДЕРІВ У ВИПАДКУ ПЕРЕТИНУ ПРЕОРДЕРА СВІЧКОЮ
     // Оновлює масив order (додає ордери на купівлю), оновлює масив preOrders (видаляє перенесені) // приймає свічку і преОрдери
     findNewOrders(candle, preOrders, orders);
+    console.log("4 Виставлені (orders) >> ", orders.size, orders);
     
     // 5 РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
     // модифікує сети preOrders і orders сходинки шкали між якими знаходиться свічка. ( наступні точки пошуку в бд )
     // приймає шкалу (масив), свічку (об'єкт) і ордери (масив обов'єзково має бути впорядкований від меньшого до більшого)
-    findNextOrders(scale, candle, preOrders, orders);
+    findNextOrders(scale, candle, preOrders, orders, params);
+    console.log("5 Виставлені (orders) >> ", orders.size, orders);
+    console.log("5 Виставлені (preOrders) >> ", preOrders.size, preOrders);
 
     // 6 ФОРМУЄМ ПАРАМЕТРИ НАСТУПНОГО ЗАПИТУ
     // модифікує queryParams
-    updateQueryParams(queryParams, buy, preOrders, orders);
+    updateQueryParams(queryParams, candle, buy, preOrders, orders);
   }
 
   db.close();
