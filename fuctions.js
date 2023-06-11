@@ -49,7 +49,6 @@ function updatesBuy(candle, orders, buy, params){
   Object.entries(orders).forEach(([key, value])=>{
     // перевіряє перетин ордерів зі свічкою
     if (low < value) {
-      console.log("СРАБОТКА СРАБОТКА СРАБОТКА СРАБОТКА");
       // модифікую об'єкт buy (додаю/ нові ел)
       buy.push({
         scale: key,
