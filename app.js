@@ -20,9 +20,9 @@ const {
 // ЗМІННІ **********
 const params = {
   // доларів в 1 ордері
-  orderVolume : 10 ,
+  orderVolume : 70 ,
   // націнка яку я планую заробити
-  profit: 1 ,
+  profit: 5 ,
   // при спрацюванні преордеру збільшити ціну преордеру при переносі до ордерів // дозволить ордеру виконатись якщо ціна іде вгору
   // TODO: поки неможливо бо призведе до дублювання з ордерами які трохи відрізняються і виставляються в ф5 при падінні ціни
   orderAddedValue: 0.1 ,
@@ -34,8 +34,8 @@ const params = {
   preOrdersLimit : 3 ,
   ordersLimit : 3 ,
   // дата початку і закінчення аналізу
-  dataStart: "2017-05-01" ,
-  dataEnd: "2023-05-02" ,
+  dataStart: "2017-08-17" ,
+  dataEnd: "2018-01-01" ,
 };
 
 //масив scale обов'єзково має бути впорядкований від меньшого до більшого
@@ -79,7 +79,7 @@ const app = async () => {
   console.log(" довжина шкали >> ", scale.length);
   console.log(" стартові параметри >> ", queryParams);
 
-  for (let cycle = 1; cycle <= 10000; cycle++) { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+  for (let cycle = 1; cycle <= 20000; cycle++) { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     // console.log("<<<<<<<<<<<<<<<<< ПРОХІД >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ", cycle);
     // console.log(
@@ -90,9 +90,6 @@ const app = async () => {
     // console.log(" вище мін. ціни продажу >> ", queryParams.minOrderSell);
     // console.log(" вище ціни >> ", queryParams.minPreOrder);
     // console.log(" нище ціни >> ", queryParams.maxOrder);
-    
-    // оновлення поередньої свічки
-    previousCandle = candle;
 
     // 1 ЗАПИТ В БД ЗА СВІЧКОЮ
     if (JSON.stringify(candle) === "{}") {
@@ -104,7 +101,10 @@ const app = async () => {
       // приймає об'їкт (час початку/кінця періоду, 2 найближчі сходинки шкали buy - меньше/більше попередньої ціни, найменший ордер на продаж sell)
       candle = await getCandleFromBD(queryParams);
     }
-    // 1.1 модифікую об'єкт candle
+    // 1.1 перевіряю і модифікую об'єкт candle
+    if(!candle){
+      break
+    }
     candle.high = Number(candle.high);
     candle.low = Number(candle.low);
 
@@ -185,8 +185,11 @@ const app = async () => {
     // модифікує queryParams
     updateQueryParams(queryParams, candle, buy, preOrders, orders);
 
-    // 8 ФОРМУЮ ЗВІТ
+    // формую звіт
     buyLength = Math.max( buy.length, buyLength );
+    
+    // оновлюю поередню свічку
+    previousCandle = candle;
   }
 
   db.close();
@@ -197,7 +200,7 @@ const app = async () => {
 
   console.log("Скрипт дійшов до кінця, час виконання мс. ", executionTime);
   console.log("перша свічка ", formatDate(openTimeFirstCandle));
-  console.log("остання свічка ", formatDate(candle.openTime));
+  console.log("остання свічка ", formatDate(previousCandle.openTime));
   console.log("максимально використано $ в моменті ", bank);
   console.log("зароблено $ ", totalProfit);
 };
