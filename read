@@ -55,10 +55,11 @@ candle = {
 }
 
 buy[{
-  priceBuy: 10000,
-  openTimeBuy: openTime,
-  priceSell: 10100,
-  }]
+        scale: 10000,
+        priceBuy: 10001,
+        openTimeBuy: 1502943420000,
+        priceSell: 10101,
+      }]
 
 filteredScale = []
 

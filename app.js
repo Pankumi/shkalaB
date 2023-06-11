@@ -41,8 +41,8 @@ const params = {
 //масив scale обов'єзково має бути впорядкований від меньшого до більшого
 let scale = [];
 let candle = {};
-let preOrders = new Set();
-let orders = new Set();
+let preOrders = {};
+let orders = {};
 let buy = [];
 let buyLength = 0;
 let done = [];
@@ -66,6 +66,8 @@ let previousCandle = {};
 // **********
 // повертає шкалу // приймає об'єкт з нижнім/верхнім зн. і кроком шкали
 scale = createScaleArray(params);
+const maxScale = Math.max( ...scale );
+const minScale = Math.min( ...scale );
 
 // **********
 // Підключення до MongoDB
@@ -81,7 +83,7 @@ const app = async () => {
   console.log(" довжина шкали >> ", scale.length);
   console.log(" стартові параметри >> ", queryParams);
 
-  for (let cycle = 1; cycle <= 100000; cycle++) { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+  for (let cycle = 1; cycle <= 10; cycle++) { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     // console.log("<<<<<<<<<<<<<<<<< ПРОХІД >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ", cycle);
     // console.log(
@@ -157,13 +159,13 @@ const app = async () => {
 
     // 4 СПРАЦЮВАННЯ ПРЕ-ОРДЕРІВ - ПЕРЕНОС ДО ОРДЕРІВ У ВИПАДКУ ПЕРЕТИНУ ПРЕОРДЕРА СВІЧКОЮ
     // Оновлює масив order (додає ордери на купівлю), оновлює масив preOrders (видаляє перенесені) // приймає свічку і преОрдери
-    findNewOrders(candle, preOrders, orders, params);
+    findNewOrders(candle, preOrders, orders);
     // console.log("4 Виставлені (orders) >> ", orders.size, orders);
     
     // 5 РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
     // модифікує сети preOrders і orders сходинки шкали між якими знаходиться свічка. ( наступні точки пошуку в бд )
     // приймає шкалу (масив), свічку (об'єкт) і ордери (масив обов'єзково має бути впорядкований від меньшого до більшого)
-    findNextOrders(scale, candle, preOrders, orders, params);
+    findNextOrders(scale, candle, preOrders, orders, params, maxScale, minScale);
     // console.log("5 Виставлені (orders) >> ", orders.size, orders);
     // console.log("5 Виставлені (preOrders) >> ", preOrders.size, preOrders);
 

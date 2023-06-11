@@ -1,7 +1,7 @@
 const mathjs = require("mathjs");
 
-// 0 ***********
-// Створює шкалу buy
+
+// 0 *********** Створює шкалу
 // Приймає початкове значення, максимальне значення, розмір кроку у відсотках
 function createScaleArray(params) {
   const { scaleStart, scaleEnd, scaleStep } = params;
@@ -19,8 +19,9 @@ function createScaleArray(params) {
   return scale;
 }
 
-// 2 ***********
-// оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає свічку (об'єкт), масив buy, масив done
+// 2 *********** СПРАЦЮВАННЯ ОРДЕРІВ НА ПРОДАЖ - ПЕРЕНОС З BUY В DONE
+// оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди)
+// приймає свічку (об'єкт), масив buy, масив done
 function updatesBuyAndDone(candle, buy, done) {
   const { high, openTime } = candle;
 
@@ -38,9 +39,31 @@ function updatesBuyAndDone(candle, buy, done) {
   }
 }
 
-// 3 ***********
-// Оновлює масив buy (додає відкриті угоди) // приймає свчічку (candle), сет (orders), масив(buy), об'єкт з профітом(params)
+// 3 *********** СПРАЦЮВАННЯ ОРДЕРІВ НА КУПІВЛЮ
+// Оновлює масив buy (додає відкриті угоди)
+// приймає свчічку (candle), об'єкт (orders), масив(buy), об'єкт з профітом(params)
 function updatesBuy(candle, orders, buy, params){
+  const { low, high, openTime } = candle;
+  const { profit } = params;
+
+  Object.entries(orders).forEach(([key, value])=>{
+    // перевіряє перетин ордерів зі свічкою
+    if (low <= value && value <= high) {
+      // модифікую об'єкт buy (додаю/ нові ел)
+      buy.push({
+        scale: key,
+        priceBuy: value,
+        openTimeBuy: openTime,
+        priceSell: mathjs.round(el * (1 + profit / 100), 8),
+      });
+
+      // модифікую orders (видаляю перенесені до buy ордери)
+      delete orders[key];
+    }
+  })
+}
+
+function updatesBuy0(candle, orders, buy, params){
   const { low, high, openTime } = candle;
   const { profit } = params;
 
@@ -69,20 +92,28 @@ function updatesBuy(candle, orders, buy, params){
         // console.log("3 ДОДАНО ордер >> ", newBuyEl);
       }
 
-      // модифікую сет преОрдерів (видаляю з orders перенесені до buy ордери)
+      // модифікую сет orders (видаляю з orders перенесені до buy ордери)
       orders.delete(el);
     }
   }
 }
 
-// 4 ***********
-// модифікує сет ордерів і сет преОрдерів
-// Приймає свічку, сет преОрдерів, сет ордерів
-function findNewOrders(candle, preOrders, orders, params) {
+// 4 *********** СПРАЦЮВАННЯ ПРЕ-ОРДЕРІВ - ПЕРЕНОС ДО ОРДЕРІВ У ВИПАДКУ ПЕРЕТИНУ ПРЕОРДЕРА СВІЧКОЮ
+// модифікує об'єкт ордерів і об'єкт преОрдерів
+// Приймає свічку, об'єкт преОрдерів, об'єкт ордерів
+function findNewOrders(candle, preOrders, orders) {
   const { low, high } = candle;
   // в цьому випадку <= доречно так як для виставлення ордеру достатньо щоб ціна торкнулась позначки
-  for (const el of preOrders) {
-    if (low <= el && el <= high) {
+  Object.entries(preOrders).forEach(([key, value]) => {
+    if (low <= value && value <= high) {
+
+      // модифікую об'єкт ордерів (додаю нові)
+      orders[key] = value;
+      // модифікую сет преОрдерів (видаляю з preOrders перенесені до orders)
+      delete preOrders[key];
+    }
+  });
+}
 
       // збільшити ціну преордеру при переносі до ордерів
       // TODO: поки неможливо бо призведе до дублювання з ордерами які трохи відрізняються і виставляються в ф5 при падінні ціни
@@ -90,36 +121,35 @@ function findNewOrders(candle, preOrders, orders, params) {
       // const orderValue = mathjs.round(newOrderValue, 8);
       // orders.add(orderValue);
 
-      // модифікую сет ордерів (додаю нові)
-      orders.add(el);
-      // модифікую сет преОрдерів (видаляю з preOrders перенесені до orders)
-      preOrders.delete(el);
-    }
-  }
-}
-
-// ***********
-// 5 РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
+// 5 *********** РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
 // приймає шкалу (масив), свічку (об'єкт) і ордери (масив обов'єзково має бути впорядкований від меньшого до більшого)
-// модифікую сети orders і сет preOrders
-function findNextOrders(scale, candle, preOrders, orders, params) {
+// модифікую об'єкт orders і об'єкт preOrders
+function findNextOrders(scale, candle, preOrders, orders, params, maxScale, minScale){
   const { low, high, openTime } = candle;
   const { preOrdersLimit, ordersLimit } = params;
   let preOrdersCalc = 0;
   let ordersCalc = 0;
 
-  // Якщо свічка над шкалою значення додається лише крайній orders
+  // Якщо свічка над шкалою додається лише крайній orders
   if (low > Math.max(...scale)) {
-    orders.add(Math.max(...scale));
+    // orders.add(Math.max(...scale)); //del old
+
+    // Додаємо новий елемент до об'єкта "orders"
+    orders[ String(maxScale) ] = maxScale;
+
     console.log(
       `low свічки ${candle.low} більше шкали. Відкриття ${formatDate(openTime)}`
     );
     return;
   }
 
-  // Якщо свічка під шкалою значення додається лише крайній preOrders
+  // Якщо свічка під шкалою додається лише крайній preOrders
   if (high < Math.min(...scale)) {
-    preOrders.add(Math.min(...scale));
+    // preOrders.add(Math.min(...scale)); //del old
+    
+    // Додаємо новий елемент до об'єкта "preOrders"
+    preOrders[ String(minScale) ] = minScale;
+
     console.log(
       `low свічки ${candle.low} маньше шкали. Відкриття ${formatDate(openTime)}`
     );
@@ -130,7 +160,10 @@ function findNextOrders(scale, candle, preOrders, orders, params) {
   // знаходим точки шкали вищє свічки
   for (let i = 0; i < scale.length; i++) {
     if (scale[i] > high) {
-      preOrders.add(scale[i]);
+      // preOrders.add(scale[i]); //del old
+      // Додаємо новий елемент до об'єкта "preOrders"
+      const scaleI = scale[i];
+      preOrders[ String( scaleI ) ] = scaleI;
 
       preOrdersCalc ++;
       if (preOrdersCalc >= preOrdersLimit){
@@ -142,7 +175,10 @@ function findNextOrders(scale, candle, preOrders, orders, params) {
   // знаходим точки шкали нищє свічки
   for (let i = scale.length - 1; i >= 0; i--) {
     if (scale[i] < low) {
-      orders.add(scale[i]);
+      // orders.add(scale[i]); //del old
+      // Додаємо новий елемент до об'єкта "orders"
+      const scaleI = scale[i];
+      orders[ String( scaleI ) ] = scaleI;
 
       ordersCalc ++;
       if (ordersCalc >= ordersLimit){
@@ -150,12 +186,19 @@ function findNextOrders(scale, candle, preOrders, orders, params) {
       }
     }
   }
+
+  // видаляю ордери і преордери які вже є в buy (повторне відпрацювання по ним не потрібне)
+  buy.forEach((el)=>{
+    const elScale = el.scale;
+    delete orders[elScale];
+    delete preOrders[elScale];
+  })
+  
 }
 
-// ***********
-// 6 ФОРМУЄМ ПАРАМЕТРИ НАСТУПНОГО ЗАПИТУ
+// 6 *********** ФОРМУЄМ ПАРАМЕТРИ НАСТУПНОГО ЗАПИТУ
 // модифікує queryParams
-// приймає об'єкт (queryParams), об'єкт (candle), масив (buy), сет (preOrders), сет (orders)
+// приймає об'єкт (queryParams), об'єкт (candle), масив (buy), об'єкт (preOrders), об'єкт (orders)
 function updateQueryParams(queryParams, candle, buy, preOrders, orders) {
   queryParams.dataStartMs = candle.closeTime + 1;
 
@@ -171,15 +214,17 @@ function updateQueryParams(queryParams, candle, buy, preOrders, orders) {
   if (preOrders.size === 0) {
     queryParams.minPreOrder = null;
   } else {
-    const arrPreOrders = Array.from(preOrders);
+    // const arrPreOrders = Array.from(preOrders); // del old
+    const arrPreOrders = Object.values(preOrders);
     queryParams.minPreOrder = Math.min(...arrPreOrders);
   }
   
   // найбільший ордер на купівлю
-  if (orders.size === 0) {
+  if (orders.length === 0) {
     queryParams.maxOrder = null;
   } else {
-    const arrOrders = Array.from(orders);
+    // const arrOrders = Array.from(orders); // del old
+    const arrOrders = Object.values(orders);
     queryParams.maxOrder = Math.max(...arrOrders);
   }
 }
@@ -207,3 +252,5 @@ module.exports = {
   updateQueryParams,
   formatDate,
 };
+
+

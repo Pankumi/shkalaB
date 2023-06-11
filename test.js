@@ -1,27 +1,28 @@
-const mathjs = require("mathjs");
+const buy = [
+  { scale: 1 },
+  { scale: 2 },
+  { scale: 3 },
+];
 
-const params = {
-  // націнка яку я планую заробити
-  profit: 1,
-  // при спрацюванні преордеру збільшити ціну преордеру при переносі до ордерів // дозволить ордеру виконатись якщо ціна іде вгору
-  orderAddedValue: 0.1,
-  // початкові зн. шкали: початкова ціна, кінцева ціна, крок %, прибуток %:
-  scaleStart: 1000,
-  scaleEnd: 100000,
-  scaleStep: 1,
-  // ліміт ордерів які виставляти
-  preOrdersLimit: 7,
-  ordersLimit: 7,
-  // дата початку і закінчення аналізу
-  dataStart: "2017-05-01",
-  dataEnd: "2023-05-02",
+const orders = {
+  1: { name: 'Order 1', value: 100 },
+  2: { name: 'Order 2', value: 200 },
+  3: { name: 'Order 3', value: 300 },
+  4: { name: 'Order 4', value: 400 },
 };
-const stape = 10000.857621;
 
-currentValue = mathjs.evaluate(
-  `${stape} + (${stape} * ${params.orderAddedValue / 100})`
-);
-const result = mathjs.round(currentValue, 8);
+const preOrders = {
+  1: { name: 'Pre-order 1', value: 50 },
+  2: { name: 'Pre-order 2', value: 100 },
+  3: { name: 'Pre-order 3', value: 150 },
+  4: { name: 'Pre-order 4', value: 200 },
+};
 
-console.log(result);
+buy.forEach((el) => {
+  const elScale = el.scale;
+  delete orders[elScale];
+  delete preOrders[elScale];
+});
 
+console.log(orders);
+console.log(preOrders);
