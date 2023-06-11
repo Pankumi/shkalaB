@@ -7,7 +7,7 @@ const {
   findNewOrders,
   findNextOrders,
   updateQueryParams,
-
+  deleteDuplicates,
   formatDate,
 } = require("./fuctions");
 // const getBinanceData = require("../request"); // binance api
@@ -31,8 +31,8 @@ const params = {
   scaleEnd: 100000 ,
   scaleStep: 1 ,
   // ліміт ордерів які виставляти
-  preOrdersLimit : 7 ,
-  ordersLimit : 7 ,
+  preOrdersLimit : 3 ,
+  ordersLimit : 3 ,
   // дата початку і закінчення аналізу
   dataStart: "2017-05-01" ,
   dataEnd: "2023-05-02" ,
@@ -51,10 +51,6 @@ let openTimeFirstCandle;
 let queryParams = {
   dataStartMs: new Date(params.dataStart).getTime(),
   dataEndMs: new Date(params.dataEnd).getTime(),
-
-  highStep: null, // del
-  lowStep: null, // del
-
   minOrderSell: null,
   minPreOrder: null,
   maxOrder: null,
@@ -85,16 +81,16 @@ const app = async () => {
 
   for (let cycle = 1; cycle <= 10; cycle++) { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    // console.log("<<<<<<<<<<<<<<<<< ПРОХІД >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ", cycle);
-    // console.log(
-    //   " почати з >> ",
-    //   queryParams.dataStartMs,
-    //   formatDate(queryParams.dataStartMs)
-    // );
-    // console.log(" мін. точка продажу >> ", queryParams.minOrderSell);
-    // console.log(" точку купівлі над попередньою свічкою>> ", queryParams.highStep);
-    // console.log(" точка купівлі під попередньою свічкою>> ", queryParams.lowStep);
-
+    console.log("<<<<<<<<<<<<<<<<< ПРОХІД >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ", cycle);
+    console.log(
+      " почати з >> ",
+      queryParams.dataStartMs,
+      formatDate(queryParams.dataStartMs)
+    );
+    console.log(" вище мін. ціни продажу >> ", queryParams.minOrderSell);
+    console.log(" вище ціни >> ", queryParams.minPreOrder);
+    console.log(" нище ціни >> ", queryParams.maxOrder);
+    
     // оновлення поередньої свічки
     previousCandle = candle;
 
@@ -112,70 +108,81 @@ const app = async () => {
     candle.high = Number(candle.high);
     candle.low = Number(candle.low);
 
-    // console.log("1 СВІЧКА: ", candle._id);
-    // console.log(
-    //   " _____.openTime >> ",
-    //   candle.openTime,
-    //   formatDate(candle.openTime),
-    //   "_____.closeTime >> ",
-    //   candle.closeTime,
-    //   formatDate(candle.closeTime)
-    // );
-    // console.log(" _____.high >> ", candle.high);
-    // console.log(" _____.low >> ", candle.low);
+    console.log("1 СВІЧКА: ", candle._id);
+    console.log(
+      " _____.openTime >> ",
+      candle.openTime,
+      formatDate(candle.openTime),
+      "_____.closeTime >> ",
+      candle.closeTime,
+      formatDate(candle.closeTime)
+    );
+    console.log(" _____.high >> ", candle.high);
+    console.log(" _____.low >> ", candle.low);
 
-    // 1.2 ПЕРЕВІРКА ЧИ СВІЧКА НЕ ВИСКОЧИЛА ЗА МЕЖІ ЗАПИТУ (queryParams.highStep) (таке можливо бо ціна open часто відрізняється від close попередньої свічки)
-    // вищє запиту
-    if (candle.low > queryParams.highStep) {
-      // console.log("1.2 СВІЧКА ВИЩЕ ЗАПИТУ ");
-    }
-    // ницє запиту
-    if (candle.high < queryParams.lowStep) {
-      // console.log("1.2 СВІЧКА НИЩЕ ЗАПИТУ ");
-    }
-
-    // console.log(
-    //   "2 Виконані (done) >> ",
-    //   done.length,
-    //   "відкриті (buy) >> ",
-    //   buy.length
-    // );
+    console.log("2 ПЕРЕНОС З BUY В DONE ");
+    console.log(
+      "до - виконані (done) >> ",done.length,
+      "  відкриті (buy) >> ",buy.length
+      );
 
     // 2 СПРАЦЮВАННЯ ОРДЕРІВ НА ПРОДАЖ - ПЕРЕНОС З BUY В DONE
     // оновлює масив done (додає завершені угоди), оновлює buy (видаляє завершені угоди) // приймає свічку (об'єкт), масив buy, масив done
     updatesBuyAndDone(candle, buy, done);
 
-    // console.log(
-    //   "2 Виконані (done) >> ",
-    //   done.length,
-    //   "відкриті (buy) >> ",
-    //   buy.length
-    // );
+    console.log(
+      "  виконані (done) >> ",done.length,
+      "  відкриті (buy) >> ",buy.length
+    );
 
-    // 3 СПРАЦЮВАННЯ ОРДЕРІВ НА КУПІВЛЮ
-    // Оновлює масив buy (додає відкриті угоди) // приймає свчічку (candle), сет (orders), масив(buy), об'єкт з профітом(params)
+    console.log("3 ПЕРЕНОС ORDERS В BUY ");
+    console.log(
+      "до - виставлені (orders) >> ", Object.keys(orders).length,
+      "  відкриті (buy) >> ", buy.length, buy
+    );
+
+    // 3 СПРАЦЮВАННЯ ОРДЕРІВ НА КУПІВЛЮ - ПЕРЕНОС ORDERS В BUY
+    // Оновлює масив buy (додає відкриті угоди) // приймає свчічку (candle), об'єкт (orders), масив(buy), об'єкт з профітом(params)
     updatesBuy(candle, orders, buy, params);
-    // console.log("3 відкриті (buy) >> ", buy.length, buy);
 
-    // 4 СПРАЦЮВАННЯ ПРЕ-ОРДЕРІВ - ПЕРЕНОС ДО ОРДЕРІВ У ВИПАДКУ ПЕРЕТИНУ ПРЕОРДЕРА СВІЧКОЮ
+    console.log(
+      "  виставлені (orders) >> ", Object.keys(orders).length,
+      "  відкриті (buy) >> ", buy.length, buy
+    );
+
+    console.log("4 ПЕРЕНОС PREORDERS В ORDERS ");
+    console.log(
+      "до - (preOrders) >> ", Object.keys(preOrders).length,
+      "  виставлені (orders) >> ", Object.keys(orders).length, orders
+      );
+    // 4 СПРАЦЮВАННЯ ПРЕ-ОРДЕРІВ - ПЕРЕНОС PREORDERS В ORDERS
     // Оновлює масив order (додає ордери на купівлю), оновлює масив preOrders (видаляє перенесені) // приймає свічку і преОрдери
     findNewOrders(candle, preOrders, orders);
-    // console.log("4 Виставлені (orders) >> ", orders.size, orders);
+    console.log(
+      "  (preOrders) >> ", Object.keys(preOrders).length,
+      "  виставлені (orders) >> ", Object.keys(orders).length, orders
+      );
     
+    console.log("5 НАСТУПНІ PREORDERS І ORDERS ");
     // 5 РОЗРАХУВАТИ НАСТУПНІ ОРДЕРИ І ПРЕ-ОРДЕРИ (ТОЧКИ ПОШУКУ В БД)
     // модифікує сети preOrders і orders сходинки шкали між якими знаходиться свічка. ( наступні точки пошуку в бд )
     // приймає шкалу (масив), свічку (об'єкт) і ордери (масив обов'єзково має бути впорядкований від меньшого до більшого)
     findNextOrders(scale, candle, preOrders, orders, params, maxScale, minScale);
-    // console.log("5 Виставлені (orders) >> ", orders.size, orders);
-    // console.log("5 Виставлені (preOrders) >> ", preOrders.size, preOrders);
+    console.log("  виставлені (preOrders) >> ", Object.keys(preOrders).length, preOrders);
+    console.log("  виставлені (orders) >> ", Object.keys(orders).length, orders);
+    
+    console.log("5 ВИДАЛЯЮ ДУБЛІКАТИ PREORDERS І ORDERS ");
+    // 6 ВИДАЛЯЮ ДУБЛІКАТИ ОРДЕРІВ І ПРЕ-ОРДЕРІВ ЯКІ ВЖЕ В BUY (КУПЛЕНІ)
+    deleteDuplicates(buy, preOrders, orders);
+    console.log("  виставлені (preOrders) >> ", Object.keys(preOrders).length, preOrders);
+    console.log("  виставлені (orders) >> ", Object.keys(orders).length, orders);
 
-    // 6 ФОРМУЄМ ПАРАМЕТРИ НАСТУПНОГО ЗАПИТУ
+    // 7 ФОРМУЄМ ПАРАМЕТРИ НАСТУПНОГО ЗАПИТУ
     // модифікує queryParams
     updateQueryParams(queryParams, candle, buy, preOrders, orders);
 
-    // 7 ФОРМУЮ ЗВІТ
+    // 8 ФОРМУЮ ЗВІТ
     buyLength = Math.max( buy.length, buyLength );
-
   }
 
   db.close();
@@ -184,7 +191,7 @@ const app = async () => {
   const totalProfit = params.orderVolume / 100 * params.profit * done.length;
   const executionTime = new Date() - timeStart;
 
-  console.log("скрипт дійшов до кінця, час виконання мс. ", executionTime);
+  console.log("Скрипт дійшов до кінця, час виконання мс. ", executionTime);
   console.log("перша свічка ", formatDate(openTimeFirstCandle));
   console.log("остання свічка ", formatDate(candle.openTime));
   console.log("максимально використано $ в моменті ", bank);

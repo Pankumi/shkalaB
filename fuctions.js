@@ -48,54 +48,20 @@ function updatesBuy(candle, orders, buy, params){
 
   Object.entries(orders).forEach(([key, value])=>{
     // перевіряє перетин ордерів зі свічкою
-    if (low <= value && value <= high) {
+    if (low < value) {
+      console.log("СРАБОТКА СРАБОТКА СРАБОТКА СРАБОТКА");
       // модифікую об'єкт buy (додаю/ нові ел)
       buy.push({
         scale: key,
         priceBuy: value,
         openTimeBuy: openTime,
-        priceSell: mathjs.round(el * (1 + profit / 100), 8),
+        priceSell: mathjs.round(value * (1 + profit / 100), 8),
       });
 
       // модифікую orders (видаляю перенесені до buy ордери)
       delete orders[key];
     }
   })
-}
-
-function updatesBuy0(candle, orders, buy, params){
-  const { low, high, openTime } = candle;
-  const { profit } = params;
-
-  for (const el of orders) {
-    // перевіряє перетин ордерів зі свічкою
-    if (low <= el && el <= high) {
-
-      // модифікую buy (додаю нові ел):
-      // перевіряє відсутність в масиві buy елементу з такою ж ціною перетину
-      let isDuplicate = false;
-      for (let i = 0; i < buy.length; i++) {
-        if (buy[i].priceBuy === el) {
-          isDuplicate = true;
-          // console.log("3 Вже є ордер >", el);
-          break;
-        }
-      }
-      // Якщо в buy елементу з такою ж ціною не знайдено додаю в buy новий елемент
-      if (!isDuplicate) {
-        const newBuyEl = {
-          priceBuy: el,
-          openTimeBuy: openTime,
-          priceSell: mathjs.round(el * (1 + profit / 100), 8),
-        };
-        buy.push(newBuyEl);
-        // console.log("3 ДОДАНО ордер >> ", newBuyEl);
-      }
-
-      // модифікую сет orders (видаляю з orders перенесені до buy ордери)
-      orders.delete(el);
-    }
-  }
 }
 
 // 4 *********** СПРАЦЮВАННЯ ПРЕ-ОРДЕРІВ - ПЕРЕНОС ДО ОРДЕРІВ У ВИПАДКУ ПЕРЕТИНУ ПРЕОРДЕРА СВІЧКОЮ
@@ -105,7 +71,7 @@ function findNewOrders(candle, preOrders, orders) {
   const { low, high } = candle;
   // в цьому випадку <= доречно так як для виставлення ордеру достатньо щоб ціна торкнулась позначки
   Object.entries(preOrders).forEach(([key, value]) => {
-    if (low <= value && value <= high) {
+    if (value <= high) {
 
       // модифікую об'єкт ордерів (додаю нові)
       orders[key] = value;
@@ -173,6 +139,7 @@ function findNextOrders(scale, candle, preOrders, orders, params, maxScale, minS
   }
 
   // знаходим точки шкали нищє свічки
+  // orders обов'язково має записуватись пізніше preOrders, щоб перезаписати зн. orders якщо orders створений за допомогою preOrders з зміщенням ціни buy (якщо свічка скакнула вгору і це не актуально)
   for (let i = scale.length - 1; i >= 0; i--) {
     if (scale[i] < low) {
       // orders.add(scale[i]); //del old
@@ -186,17 +153,19 @@ function findNextOrders(scale, candle, preOrders, orders, params, maxScale, minS
       }
     }
   }
+}
 
-  // видаляю ордери і преордери які вже є в buy (повторне відпрацювання по ним не потрібне)
+// 6 ВИДАЛЯЮ ДУБЛІКАТИ ОРДЕРІВ І ПРЕ-ОРДЕРІВ ЯКІ ВЖЕ В BUY (КУПЛЕНІ)
+// видаляю ордери і преордери які вже є в buy (повторне відпрацювання по ним не потрібне)
+function deleteDuplicates(buy, preOrders, orders){
   buy.forEach((el)=>{
     const elScale = el.scale;
     delete orders[elScale];
     delete preOrders[elScale];
   })
-  
 }
 
-// 6 *********** ФОРМУЄМ ПАРАМЕТРИ НАСТУПНОГО ЗАПИТУ
+// 7 *********** ФОРМУЄМ ПАРАМЕТРИ НАСТУПНОГО ЗАПИТУ
 // модифікує queryParams
 // приймає об'єкт (queryParams), об'єкт (candle), масив (buy), об'єкт (preOrders), об'єкт (orders)
 function updateQueryParams(queryParams, candle, buy, preOrders, orders) {
@@ -249,6 +218,7 @@ module.exports = {
   updatesBuy,
   findNewOrders,
   findNextOrders,
+  deleteDuplicates,
   updateQueryParams,
   formatDate,
 };
